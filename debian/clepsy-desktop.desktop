@@ -1,0 +1,9 @@
+[Desktop Entry]
+Version=1.0
+Type=Application
+Name=Clepsy
+Comment=Track active window usage with Clepsy
+Exec=/usr/bin/clepsy_desktop_source
+Icon=clepsy-desktop
+Terminal=false
+Categories=Utility;

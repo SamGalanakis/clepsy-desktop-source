@@ -1,0 +1,6 @@
+Package: clepsy-desktop
+Section: utils
+Priority: optional
+Architecture: amd64
+Maintainer: Clepsy
+Description: Clepsy Tracker

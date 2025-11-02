@@ -1,0 +1,210 @@
+name: Build Installers
+on:
+  push:
+    branches: [main]
+    tags:
+      - "v*"
+  workflow_dispatch:
+  release:
+    types: [published]
+
+jobs:
+  build:
+    name: Build on ${{ matrix.os }}
+    runs-on: ${{ matrix.os }}
+    env:
+      APP_NAME: clepsy_desktop_source
+      APP_DISPLAY_NAME: Clepsy
+    strategy:
+      matrix:
+        os: [ubuntu-latest, windows-latest, macos-latest]
+        python-version: ['3.12']
+
+    steps:
+      - uses: actions/checkout@v4
+
+      - uses: astral-sh/setup-uv@v6         # fast lock/install :contentReference[oaicite:3]{index=3}
+        with:
+          enable-cache: true
+
+      - uses: actions/setup-python@v5
+        with:
+          python-version: ${{ matrix.python-version }}
+
+      - name: Determine version
+        id: determine-version
+        shell: bash
+        run: |
+          base=$(python -c 'import pathlib, tomllib; print(tomllib.loads(pathlib.Path("pyproject.toml").read_text())["project"]["version"])')
+          ref_type="${GITHUB_REF_TYPE:-}"
+          ref_name="${GITHUB_REF_NAME:-}"
+          ref="${GITHUB_REF:-}"
+          event="${GITHUB_EVENT_NAME:-}"
+          if [[ -z "$ref_name" && "$ref" == refs/tags/* ]]; then
+            ref_name="${ref#refs/tags/}"
+          fi
+          if [[ "$ref_type" == "tag" || "$ref" == refs/tags/* || "$event" == "release" ]]; then
+            version="${ref_name#v}"
+          else
+            version="${base}.dev${GITHUB_RUN_NUMBER}"
+          fi
+          sanitized=$(echo "$version" | tr -c '0-9A-Za-z._-' '-')
+          sanitized=$(echo "$sanitized" | sed -E 's/^-+//; s/-+$//; s/-{2,}/-/g')
+          arch_pkgver=$(echo "$sanitized" | tr '-' '_' | sed -E 's/_+$//')
+          arch_source="clepsy-desktop-${sanitized}-linux-x86_64.tar.gz"
+          echo "value=$sanitized" >> "$GITHUB_OUTPUT"
+          echo "APP_VERSION=$sanitized" >> "$GITHUB_ENV"
+          echo "ARTIFACT_BASENAME=clepsy-desktop-$sanitized" >> "$GITHUB_ENV"
+          echo "DMG_PATH=dist/Clepsy-$sanitized.dmg" >> "$GITHUB_ENV"
+          echo "DEB_PATH=dist/clepsy-desktop_${sanitized}_amd64.deb" >> "$GITHUB_ENV"
+          echo "RPM_PATH=dist/clepsy-desktop-${sanitized}-1.x86_64.rpm" >> "$GITHUB_ENV"
+          echo "TAR_PATH=dist/$arch_source" >> "$GITHUB_ENV"
+          echo "PKGBUILD_ARCHIVE=dist/clepsy-desktop-${sanitized}-pkgbuild.tar.gz" >> "$GITHUB_ENV"
+          echo "ARCH_PKGVER=$arch_pkgver" >> "$GITHUB_ENV"
+          echo "ARCH_SOURCE_FILE=$arch_source" >> "$GITHUB_ENV"
+
+      - run: uv sync --dev --locked
+
+      # ---------- build binaries ----------
+      - name: Build binary
+        shell: bash
+        run: |
+          case "$RUNNER_OS" in
+            macOS)
+              uv run pyinstaller --windowed --name "$APP_NAME" \
+                --icon media/dist/logo.icns --add-data "media:media" \
+                src/clepsy_desktop_source/main.py
+              ;;
+            Windows)
+              uv run pyinstaller --onefile --windowed --name "$APP_NAME" \
+                --icon media/dist/logo.ico --add-data "media;media" \
+                src/clepsy_desktop_source/main.py
+              ;;
+            *)
+              uv run pyinstaller --onefile --windowed --name "$APP_NAME" \
+                --add-data "media:media" \
+                src/clepsy_desktop_source/main.py
+              ;;
+          esac
+
+      # ---------- platform installers ----------
+      - name: Windows installer
+        if: runner.os == 'Windows'
+        shell: pwsh
+        run: |
+          choco install innosetup -y
+          & "C:\Program Files (x86)\Inno Setup 6\ISCC.exe" /DMyAppVersion="${{ env.APP_VERSION }}" packaging/windows/installer.iss
+
+      - name: macOS DMG
+        if: runner.os == 'macOS'
+        shell: bash
+        run: |
+          set -euo pipefail
+          brew install create-dmg                       # :contentReference[oaicite:4]{index=4}
+
+          APP_DISPLAY_NAME="${APP_DISPLAY_NAME:-Clepsy}"
+          APP_BUNDLE_ORIG="dist/${APP_NAME}.app"
+          APP_BUNDLE="dist/${APP_DISPLAY_NAME}.app"
+          DMG_PATH="${DMG_PATH:-dist/Clepsy.dmg}"
+
+          if [[ -d "$APP_BUNDLE_ORIG" && "$APP_BUNDLE_ORIG" != "$APP_BUNDLE" ]]; then
+            rm -rf "$APP_BUNDLE"
+            mv "$APP_BUNDLE_ORIG" "$APP_BUNDLE"
+          fi
+
+          rm -f "$DMG_PATH"
+
+          create-dmg \
+            --volname "Clepsy" \
+            --volicon media/dist/logo.icns \
+            --window-size 800 400 \
+            --icon "${APP_DISPLAY_NAME}.app" 200 150 \
+            --app-drop-link 600 150 \
+            --skip-jenkins \
+            --no-internet-enable \
+            "$DMG_PATH" \
+            "$APP_BUNDLE"
+
+      - name: Linux packages
+        if: runner.os == 'Linux'
+        run: |
+          sudo apt-get update
+          sudo apt-get install -y ruby-dev ruby-bundler rpm
+          sudo gem install --no-document fpm
+          mkdir -p dist
+          pkgroot=$(mktemp -d)
+          install -Dm755 "dist/${APP_NAME}" "$pkgroot/usr/bin/${APP_NAME}"
+          install -Dm644 media/icons/256.png "$pkgroot/usr/share/icons/hicolor/256x256/apps/clepsy-desktop.png"
+          install -Dm644 debian/clepsy-desktop.desktop "$pkgroot/usr/share/applications/clepsy-desktop.desktop"
+          fpm -s dir -t deb -n clepsy-desktop -v "${APP_VERSION}" \
+              --prefix / \
+              --deb-custom-control debian/control \
+              --after-install packaging/linux/postinstall.sh \
+              --package "$DEB_PATH" \
+              -C "$pkgroot" .
+          fpm -s dir -t rpm -n clepsy-desktop -v "${APP_VERSION}" \
+              --prefix / \
+              --after-install packaging/linux/postinstall.sh \
+              --depends "glibc" \
+              --package "$RPM_PATH" \
+              -C "$pkgroot" .
+          tar -C "$pkgroot" -czf "$TAR_PATH" .
+          sha256=$(sha256sum "$TAR_PATH" | cut -d' ' -f1)
+          archpkgdir=$(mktemp -d)
+          cp "$TAR_PATH" "$archpkgdir/"
+          printf '%s\n' \
+            'pkgname=clepsy-desktop' \
+            "pkgver=${ARCH_PKGVER}" \
+            'pkgrel=1' \
+            'pkgdesc="Clepsy time tracking client"' \
+            "arch=('x86_64')" \
+            "url='https://github.com/SamGalanakis/clepsy-desktop-source'" \
+            "license=('AGPL3')" \
+            "depends=('glibc')" \
+            "source=('${ARCH_SOURCE_FILE}')" \
+            "sha256sums=('${sha256}')" \
+            '' \
+            'package() {' \
+            '  install -d "${pkgdir}"' \
+            '  cp -r "${srcdir}/usr" "${pkgdir}/"' \
+            '}' \
+            > "$archpkgdir/PKGBUILD"
+          tar -C "$archpkgdir" -czf "$PKGBUILD_ARCHIVE" .
+      - run: uv cache prune --ci
+
+      # ---------- artifacts ----------
+      - uses: actions/upload-artifact@v4
+        if: runner.os == 'Windows'
+        with:
+          name: clepsy-desktop-${{ env.APP_VERSION }}-windows-setup
+          path: packaging/windows/Output/clepsy-desktop-${{ env.APP_VERSION }}-setup.exe
+
+      - uses: actions/upload-artifact@v4
+        if: runner.os == 'macOS'
+        with:
+          name: clepsy-desktop-${{ env.APP_VERSION }}-macos-dmg
+          path: ${{ env.DMG_PATH }}
+
+      - uses: actions/upload-artifact@v4
+        if: runner.os == 'Linux'
+        with:
+          name: clepsy-desktop-${{ env.APP_VERSION }}-linux-deb
+          path: ${{ env.DEB_PATH }}
+
+      - uses: actions/upload-artifact@v4
+        if: runner.os == 'Linux'
+        with:
+          name: clepsy-desktop-${{ env.APP_VERSION }}-linux-rpm
+          path: ${{ env.RPM_PATH }}
+
+      - uses: actions/upload-artifact@v4
+        if: runner.os == 'Linux'
+        with:
+          name: clepsy-desktop-${{ env.APP_VERSION }}-linux-tarball
+          path: ${{ env.TAR_PATH }}
+
+      - uses: actions/upload-artifact@v4
+        if: runner.os == 'Linux'
+        with:
+          name: clepsy-desktop-${{ env.APP_VERSION }}-linux-pkgbuild
+          path: ${{ env.PKGBUILD_ARCHIVE }}
