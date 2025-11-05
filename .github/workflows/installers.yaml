@@ -73,6 +73,7 @@ jobs:
             macOS)
               uv run pyinstaller --windowed --name "$APP_NAME" \
                 --icon media/dist/logo.icns --add-data "media:media" \
+                --strip \
                 src/clepsy_desktop_source/main.py
               ;;
             Windows)
@@ -83,6 +84,7 @@ jobs:
             *)
               uv run pyinstaller --onefile --windowed --name "$APP_NAME" \
                 --add-data "media:media" \
+                --strip \
                 src/clepsy_desktop_source/main.py
               ;;
           esac
@@ -134,6 +136,8 @@ jobs:
           mkdir -p dist
           pkgroot=$(mktemp -d)
           install -Dm755 "dist/${APP_NAME}" "$pkgroot/usr/bin/${APP_NAME}"
+          # Strip binary to reduce size
+          strip "$pkgroot/usr/bin/${APP_NAME}" || true
           install -Dm644 media/icons/256.png "$pkgroot/usr/share/icons/hicolor/256x256/apps/clepsy-desktop.png"
           install -Dm644 debian/clepsy-desktop.desktop "$pkgroot/usr/share/applications/clepsy-desktop.desktop"
           fpm -s dir -t deb -n clepsy-desktop -v "${APP_VERSION}" \
@@ -161,6 +165,7 @@ jobs:
             "url='https://github.com/SamGalanakis/clepsy-desktop-source'" \
             "license=('AGPL3')" \
             "depends=('glibc')" \
+            "options=('!debug')" \
             "source=('${ARCH_SOURCE_FILE}')" \
             "sha256sums=('${sha256}')" \
             '' \
