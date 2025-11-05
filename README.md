@@ -35,19 +35,21 @@ Prebuilt installers and packages are automatically generated for each release vi
 
 ### Windows
 
-1. Download `clepsy-desktop-<version>-setup.exe` from the latest release.
-2. Run the installer and follow the prompts. The application will be installed to `Program Files` and a desktop shortcut will be created.
-3. Launch **Clepsy** from the Start Menu or the desktop shortcut.
-4. The tray icon appears in the system tray (bottom-right). Right-click the icon for quick actions and settings.
+1. Download `clepsy-desktop-<version>-windows-setup.zip` from the latest release.
+2. Extract the zip file to get `clepsy-desktop-<version>-setup.exe`.
+3. Run the installer and follow the prompts. The application will be installed to `Program Files` and a desktop shortcut will be created.
+4. Launch **Clepsy** from the Start Menu or the desktop shortcut.
+5. The tray icon appears in the system tray (bottom-right). Right-click the icon for quick actions and settings.
 
 
 ### macOS
 
-1. Download `Clepsy-<version>.dmg` from the latest release.
-2. Open the DMG and drag **Clepsy** to your Applications folder.
-3. Launch **Clepsy** from Applications or Spotlight.
-4. The first launch may ask for permission to run; go to **System Settings ▸ Privacy & Security** and click "Open Anyway" if prompted.
-5. Grant **Accessibility** and **Screen Recording** permissions when requested (required for window tracking and screenshots).
+1. Download `clepsy-desktop-<version>-macos-dmg.zip` from the latest release.
+2. Extract the zip file to get `Clepsy-<version>.dmg`.
+3. Open the DMG and drag **Clepsy** to your Applications folder.
+4. Launch **Clepsy** from Applications or Spotlight.
+5. The first launch may ask for permission to run; go to **System Settings ▸ Privacy & Security** and click "Open Anyway" if prompted.
+6. Grant **Accessibility** and **Screen Recording** permissions when requested (required for window tracking and screenshots).
 
 
 
@@ -58,7 +60,8 @@ Multiple Linux package formats are provided to cover most distributions. Choose 
 #### Debian / Ubuntu (`.deb`)
 
 ```bash
-# Download clepsy-desktop_<version>_amd64.deb from the Releases page, then:
+# Download clepsy-desktop-<version>-linux-deb.zip from the Releases page, then:
+unzip clepsy-desktop-<version>-linux-deb.zip
 sudo dpkg -i clepsy-desktop_<version>_amd64.deb
 sudo apt-get install -f  # resolve any missing dependencies
 ```
@@ -68,7 +71,8 @@ Launch from your application menu or run `clepsy_desktop_source` from the termin
 #### Fedora / Red Hat / CentOS (`.rpm`)
 
 ```bash
-# Download clepsy-desktop-<version>-1.x86_64.rpm from the Releases page, then:
+# Download clepsy-desktop-<version>-linux-rpm.zip from the Releases page, then:
+unzip clepsy-desktop-<version>-linux-rpm.zip
 sudo dnf install clepsy-desktop-<version>-1.x86_64.rpm
 # or on older systems:
 sudo yum install clepsy-desktop-<version>-1.x86_64.rpm
@@ -79,20 +83,22 @@ Launch from your application menu or run `clepsy_desktop_source` from the termin
 #### Arch Linux (PKGBUILD)
 
 ```bash
-# Download clepsy-desktop-<version>-pkgbuild.tar.gz from the Releases page, then:
+# Download clepsy-desktop-<version>-linux-pkgbuild.zip from the Releases page, then:
+unzip clepsy-desktop-<version>-linux-pkgbuild.zip
+cd clepsy-desktop-<version>-linux-pkgbuild
 tar -xzf clepsy-desktop-<version>-pkgbuild.tar.gz
-cd clepsy-desktop-<version>-pkgbuild
 makepkg -si
 ```
 
-This will build and install the package using the bundled `PKGBUILD`.
+This extracts the archive, unpacks the `PKGBUILD` and source tarball, then builds and installs the package.
 
 #### Generic Linux (tarball)
 
 If your distribution isn't covered above or you prefer manual installation:
 
 ```bash
-# Download clepsy-desktop-<version>-linux-x86_64.tar.gz from the Releases page, then:
+# Download clepsy-desktop-<version>-linux-tarball.zip from the Releases page, then:
+unzip clepsy-desktop-<version>-linux-tarball.zip
 sudo tar -xzf clepsy-desktop-<version>-linux-x86_64.tar.gz -C /
 sudo gtk-update-icon-cache /usr/share/icons/hicolor  # refresh icon cache
 ```
