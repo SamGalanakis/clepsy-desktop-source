@@ -142,7 +142,6 @@ class PyWinctlWindowInfoProvider(WindowInfoProviderBase):
                 monitor_names = win.getMonitor()
                 window = WindowInfo(
                     title=win.title,
-                    is_active=True,
                     app_name=win.getAppName(),
                     bbox=bbox,
                     monitor_names=monitor_names,
@@ -267,7 +266,6 @@ class HyprlandWindowInfoProvider(WindowInfoProviderBase):
                 logger.debug("Hyprland: computed window bbox {}", bbox)
                 window = WindowInfo(
                     title=title,
-                    is_active=True,
                     app_name=app_name,
                     bbox=bbox,
                     monitor_names=[monitor_name] if monitor_name else [],
@@ -382,7 +380,6 @@ class SwayWindowInfoProvider(WindowInfoProviderBase):
                         break
                 window = WindowInfo(
                     title=title,
-                    is_active=True,
                     app_name=app_name,
                     bbox=bbox,
                     monitor_names=mon_names,

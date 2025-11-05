@@ -13,10 +13,11 @@ from PySide6.QtWidgets import (
     QWidget,
     QCheckBox,
     QStackedWidget,
+    QApplication,
 )
 from PySide6.QtCore import QTimer, Signal, QSize, Qt, QUrl
 from PySide6.QtGui import QIcon, QDesktopServices
-from clepsy_desktop_source.config import config, ICON_PATH
+from clepsy_desktop_source.config import config, ICON_PATH, resource_path
 from clepsy_desktop_source.utils import (
     save_config,
     validate_pairing_input,
@@ -355,6 +356,9 @@ class ControlPanelWindow(QDialog):
 
         self.dashboard_url: str | None = None
 
+        # Header bar: left app button + right power button
+        header_bar = QHBoxLayout()
+
         self.header_button = QPushButton("Clepsy")
         self.header_button.setIcon(QIcon(ICON_PATH))
         self.header_button.setIconSize(QSize(32, 32))
@@ -366,7 +370,21 @@ class ControlPanelWindow(QDialog):
         self.header_button.setToolTip("Open Clepsy Dashboard")
         self.header_button.clicked.connect(self.open_dashboard)
         self.header_button.setVisible(False)
-        layout.addWidget(self.header_button, alignment=Qt.AlignmentFlag.AlignLeft)
+        header_bar.addWidget(self.header_button, alignment=Qt.AlignmentFlag.AlignLeft)
+
+        header_bar.addStretch(1)
+
+        # Power button on the right
+        self.power_button = QPushButton()
+        self.power_button.setFlat(True)
+        self.power_button.setIcon(QIcon(resource_path("media/power-off.svg")))
+        self.power_button.setIconSize(QSize(20, 20))
+        self.power_button.setCursor(Qt.CursorShape.PointingHandCursor)
+        self.power_button.setToolTip("Quit Clepsy")
+        self.power_button.clicked.connect(self.confirm_quit)
+        header_bar.addWidget(self.power_button, alignment=Qt.AlignmentFlag.AlignRight)
+
+        layout.addLayout(header_bar)
 
         self.stack = QStackedWidget()
         layout.addWidget(self.stack)
@@ -446,6 +464,27 @@ class ControlPanelWindow(QDialog):
             )
             return
         QDesktopServices.openUrl(QUrl(self.dashboard_url))
+
+    def confirm_quit(self):
+        msg = QMessageBox(self)
+        msg.setWindowTitle("Quit Clepsy")
+        msg.setIcon(QMessageBox.Icon.Warning)
+        msg.setText(
+            "This will completely exit Clepsy. Background monitoring will stop until you start it again.\n\nDo you want to quit now?"
+        )
+        msg.setStandardButtons(
+            QMessageBox.StandardButton.Cancel | QMessageBox.StandardButton.Ok
+        )
+        msg.button(QMessageBox.StandardButton.Ok).setText("Quit")
+        result = msg.exec()
+        if result == QMessageBox.StandardButton.Ok:
+            app = QApplication.instance()
+            if app is not None:
+                app.quit()
+            else:
+                import os
+
+                os._exit(0)  # last resort
 
 
 class SettingsManager:
