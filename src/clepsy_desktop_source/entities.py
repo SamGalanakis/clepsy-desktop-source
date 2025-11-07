@@ -1,10 +1,7 @@
-from sqlite3.dbapi2 import Timestamp
-from unittest.mock import Base
 from pydantic import BaseModel, ConfigDict
-from dataclasses import dataclass
 from PIL import Image
-from datetime import datetime, timezone
-from typing import Literal, Optional, ClassVar
+from datetime import datetime
+from typing import Literal, Optional
 from datetime import timedelta
 from uuid import UUID, uuid4
 
