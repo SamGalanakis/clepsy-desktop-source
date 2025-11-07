@@ -42,8 +42,7 @@ async def send_desktop_check(
 async def send_afk_start(
     event: AfkStart, client: httpx.AsyncClient, headers: dict, url: str
 ):
-    json = event.model_dump_json()
-    response = await client.post(url, json=json, headers=headers)
+    response = await client.post(url, json=event.model_dump_json(), headers=headers)
     return response
 
 
