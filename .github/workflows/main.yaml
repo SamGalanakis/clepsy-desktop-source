@@ -23,8 +23,6 @@ jobs:
         with:
           enable-cache: true
 
-      - uses: j178/prek-action@v1
-
       - name: Determine version (from pyproject)
         id: determine-version
         shell: bash
