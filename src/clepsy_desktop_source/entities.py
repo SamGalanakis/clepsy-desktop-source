@@ -6,6 +6,7 @@ from PIL import Image
 from datetime import datetime, timezone
 from typing import Literal, Optional, ClassVar
 from datetime import timedelta
+from uuid import UUID, uuid4
 
 
 class Bbox(BaseModel):
@@ -23,6 +24,7 @@ class WindowInfo(BaseModel):
 
 
 class DesktopCheck(BaseModel):
+    id: UUID = uuid4()
     screenshot: Image.Image  # Required field
     active_window: WindowInfo
     timestamp: datetime
@@ -33,6 +35,7 @@ class DesktopCheck(BaseModel):
 
 
 class AfkStart(BaseModel):
+    id: UUID = uuid4()
     timestamp: datetime
     time_since_last_user_activity: timedelta
 

@@ -152,14 +152,30 @@ logging.basicConfig(handlers=[InterceptHandler()], level=0, force=True)
 # Create log directory
 LOG_DIR.mkdir(parents=True, exist_ok=True)
 
-logger.remove(0)
-logger.add(
-    sys.stderr,
-    level=config.log_level,
-    backtrace=True,
-    diagnose=True,
-    enqueue=True,
-)
+"""
+Ensure Loguru is configured robustly across platforms and PyInstaller modes:
+- Do not assume default handler id=0 exists (e.g., Windows noconsole may start without any sink).
+- Only add a stderr sink if it's a valid writable stream (stderr can be None in GUI/noconsole builds).
+"""
+
+# Safely remove existing handlers (if any)
+try:
+    # When called without an id, this removes all configured handlers.
+    logger.remove()
+except ValueError:
+    # No handlers were configured yet; ignore.
+    pass
+
+# Conditionally add stderr sink (skip in Windows noconsole / GUI builds where stderr may be None)
+stderr = getattr(sys, "stderr", None)
+if stderr is not None and hasattr(stderr, "write"):
+    logger.add(
+        stderr,
+        level=config.log_level,
+        backtrace=True,
+        diagnose=True,
+        enqueue=True,
+    )
 
 logger.add(
     LOG_FILE,

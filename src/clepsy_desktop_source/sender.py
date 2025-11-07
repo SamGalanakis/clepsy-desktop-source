@@ -22,12 +22,11 @@ async def send_desktop_check(
     buffer.seek(0)
     buffer.truncate(0)
     event.screenshot.save(buffer, format="PNG")
-    uuid = str(uuid4())
     model_data = {
         "active_window": event.active_window.model_dump(),
         "timestamp": event.timestamp.isoformat(),
         "time_since_last_user_activity": event.time_since_last_user_activity.total_seconds(),
-        "id": uuid,
+        "id": str(event.id),
     }
 
     multipart_data = {
@@ -43,13 +42,8 @@ async def send_desktop_check(
 async def send_afk_start(
     event: AfkStart, client: httpx.AsyncClient, headers: dict, url: str
 ):
-    model_data = event.model_dump()
-    event_id = str(uuid4())
-    model_data = {
-        "id": event_id,
-        **event.model_dump(),
-    }
-    response = await client.post(url, json=json.dumps(model_data), headers=headers)
+    json = event.model_dump_json()
+    response = await client.post(url, json=json, headers=headers)
     return response
 
 
