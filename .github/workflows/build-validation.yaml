@@ -1,0 +1,81 @@
+name: Build validation (PR to main)
+
+on:
+  pull_request:
+    branches: [ main ]
+    types: [ opened, synchronize, reopened ]
+
+jobs:
+  build-test:
+    name: Test build on ${{ matrix.os }}
+    runs-on: ${{ matrix.os }}
+    strategy:
+      fail-fast: false
+      matrix:
+        os: [ubuntu-latest, windows-latest, macos-latest]
+    env:
+      APP_NAME: clepsy_desktop_source
+      APP_DISPLAY_NAME: Clepsy
+    steps:
+      - uses: actions/checkout@v4
+
+      - uses: astral-sh/setup-uv@v7
+        with:
+          enable-cache: true
+
+      - name: Determine version (from pyproject)
+        id: determine-version
+        shell: bash
+        run: |
+          base=$(uv run python - <<'PY'
+          import tomllib
+          with open('pyproject.toml', 'rb') as f:
+              data = tomllib.load(f)
+          print(data["project"]["version"])
+          PY
+          )
+          version="$base"
+          echo "APP_VERSION=$version" >> "$GITHUB_ENV"
+
+      - run: uv sync --dev --locked
+
+      # ---------- build binaries ----------
+      - name: Build binary
+        shell: bash
+        run: |
+          case "$RUNNER_OS" in
+            macOS)
+              uv run pyinstaller --windowed --name "$APP_NAME" \
+                --icon media/dist/logo.icns --add-data "media:media" \
+                --strip \
+                src/clepsy_desktop_source/main.py
+              ;;
+            Windows)
+              uv run pyinstaller --onefile --windowed --name "$APP_NAME" \
+                --icon media/dist/logo.ico --add-data "media;media" \
+                src/clepsy_desktop_source/main.py
+              ;;
+            *)
+              uv run pyinstaller --onefile --windowed --name "$APP_NAME" \
+                --add-data "media:media" \
+                --strip \
+                src/clepsy_desktop_source/main.py
+              ;;
+          esac
+
+      # Verify the build succeeded
+      - name: Verify build artifacts
+        shell: bash
+        run: |
+          if [ "$RUNNER_OS" == "macOS" ]; then
+            test -d "dist/${APP_NAME}.app" || (echo "macOS .app bundle not found" && exit 1)
+            echo "✓ macOS build successful"
+          elif [ "$RUNNER_OS" == "Windows" ]; then
+            test -f "dist/${APP_NAME}.exe" || (echo "Windows .exe not found" && exit 1)
+            echo "✓ Windows build successful"
+          else
+            test -f "dist/${APP_NAME}" || (echo "Linux binary not found" && exit 1)
+            echo "✓ Linux build successful"
+          fi
+
+      - run: uv cache prune --ci
