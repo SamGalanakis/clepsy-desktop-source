@@ -19,19 +19,19 @@ jobs:
     steps:
       - uses: actions/checkout@v4
 
-      - uses: astral-sh/setup-uv@v6
+      - uses: astral-sh/setup-uv@v7
         with:
           enable-cache: true
-
-      - uses: j178/prek-action@v1
 
       - name: Determine version (from pyproject)
         id: determine-version
         shell: bash
         run: |
-          base=$(python - <<'PY'
+          base=$(uv run python - <<'PY'
           import tomllib
-          print(tomllib.loads(open('pyproject.toml','rb').read())["project"]["version"])
+          with open('pyproject.toml', 'rb') as f:
+              data = tomllib.load(f)
+          print(data["project"]["version"])
           PY
           )
           version="$base"

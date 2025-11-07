@@ -19,7 +19,7 @@ jobs:
     steps:
       - uses: actions/checkout@v4
 
-      - uses: astral-sh/setup-uv@v6
+      - uses: astral-sh/setup-uv@v7
         with:
           enable-cache: true
 
@@ -29,9 +29,11 @@ jobs:
         id: determine-version
         shell: bash
         run: |
-          base=$(python - <<'PY'
+          base=$(uv run python - <<'PY'
           import tomllib
-          print(tomllib.loads(open('pyproject.toml','rb').read())["project"]["version"])
+          with open('pyproject.toml', 'rb') as f:
+              data = tomllib.load(f)
+          print(data["project"]["version"])
           PY
           )
           version="${base}.dev${GITHUB_RUN_NUMBER}"
@@ -75,7 +77,7 @@ jobs:
         shell: bash
         run: |
           mkdir -p artifacts
-          cp dist/$APP_NAME artifacts/clepsy-desktop-${{ env.APP_VERSION }}-macos-dev
+          cp -r "dist/${APP_NAME}.app" "artifacts/clepsy-desktop-${{ env.APP_VERSION }}-macos-dev.app"
 
       - name: Package Linux app (dev)
         if: runner.os == 'Linux'
