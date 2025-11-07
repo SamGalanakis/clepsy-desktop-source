@@ -1,0 +1,106 @@
+name: Dev build (pushes to dev branch)
+
+on:
+  push:
+    branches: [ dev ]
+  workflow_dispatch:
+
+jobs:
+  build-dev:
+    name: Dev build on ${{ matrix.os }}
+    runs-on: ${{ matrix.os }}
+    strategy:
+      fail-fast: false
+      matrix:
+        os: [ubuntu-latest, windows-latest, macos-latest]
+    env:
+      APP_NAME: clepsy_desktop_source
+      APP_DISPLAY_NAME: Clepsy
+    steps:
+      - uses: actions/checkout@v4
+
+      - uses: astral-sh/setup-uv@v6
+        with:
+          enable-cache: true
+
+      - uses: j178/prek-action@v1
+
+      - name: Determine dev version
+        id: determine-version
+        shell: bash
+        run: |
+          base=$(python - <<'PY'
+          import tomllib
+          print(tomllib.loads(open('pyproject.toml','rb').read())["project"]["version"])
+          PY
+          )
+          version="${base}.dev${GITHUB_RUN_NUMBER}"
+          sanitized=$(echo "$version" | tr -c '0-9A-Za-z._-' '-')
+          sanitized=$(echo "$sanitized" | sed -E 's/^-+//; s/-+$//; s/-{2,}/-/g')
+          echo "APP_VERSION=$sanitized" >> "$GITHUB_ENV"
+          echo "ARTIFACT_BASENAME=clepsy-desktop-$sanitized" >> "$GITHUB_ENV"
+
+      - run: uv sync --dev --locked
+
+      - name: Build binary
+        shell: bash
+        run: |
+          case "$RUNNER_OS" in
+            macOS)
+              uv run pyinstaller --windowed --name "$APP_NAME" \
+                --icon media/dist/logo.icns --add-data "media:media" \
+                src/clepsy_desktop_source/main.py
+              ;;
+            Windows)
+              uv run pyinstaller --onefile --windowed --name "$APP_NAME" \
+                --icon media/dist/logo.ico --add-data "media;media" \
+                src/clepsy_desktop_source/main.py
+              ;;
+            *)
+              uv run pyinstaller --onefile --windowed --name "$APP_NAME" \
+                --add-data "media:media" \
+                src/clepsy_desktop_source/main.py
+              ;;
+          esac
+
+      - name: Windows installer (dev)
+        if: runner.os == 'Windows'
+        shell: pwsh
+        run: |
+          choco install innosetup -y
+          & "C:\Program Files (x86)\Inno Setup 6\ISCC.exe" /DMyAppVersion="${{ env.APP_VERSION }}" /DMyAppFilename="clepsy-desktop-${{ env.APP_VERSION }}-windows-dev" packaging/windows/installer.iss
+
+      - name: Package macOS app (dev)
+        if: runner.os == 'macOS'
+        shell: bash
+        run: |
+          mkdir -p artifacts
+          cp dist/$APP_NAME artifacts/clepsy-desktop-${{ env.APP_VERSION }}-macos-dev
+
+      - name: Package Linux app (dev)
+        if: runner.os == 'Linux'
+        shell: bash
+        run: |
+          mkdir -p artifacts
+          cp dist/$APP_NAME artifacts/clepsy-desktop-${{ env.APP_VERSION }}-linux-dev
+
+      - name: Upload artifact (Windows installer dev)
+        if: runner.os == 'Windows'
+        uses: actions/upload-artifact@v4
+        with:
+          name: clepsy-desktop-${{ env.APP_VERSION }}-windows-dev
+          path: packaging/windows/Output/clepsy-desktop-${{ env.APP_VERSION }}-windows-dev.exe
+
+      - name: Upload artifact (macOS dev)
+        if: runner.os == 'macOS'
+        uses: actions/upload-artifact@v4
+        with:
+          name: clepsy-desktop-${{ env.APP_VERSION }}-macos-dev
+          path: artifacts/*-macos-dev
+
+      - name: Upload artifact (Linux dev)
+        if: runner.os == 'Linux'
+        uses: actions/upload-artifact@v4
+        with:
+          name: clepsy-desktop-${{ env.APP_VERSION }}-linux-dev
+          path: artifacts/*-linux-dev

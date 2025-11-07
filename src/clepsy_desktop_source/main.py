@@ -17,7 +17,7 @@ import faulthandler
 from clepsy_desktop_source.data_generator import data_generator_worker
 from clepsy_desktop_source.entities import DesktopCheck, AfkStart, AppState
 from clepsy_desktop_source.sender import request_sender_worker
-from clepsy_desktop_source.config import config, ICON_PATH
+from clepsy_desktop_source.config import config, ICON_PATH, LOG_FILE
 from clepsy_desktop_source.gui import SettingsManager
 from clepsy_desktop_source.utils import validate_runtime_config
 from urllib.parse import urljoin
@@ -35,13 +35,13 @@ LOCK_DIR = Path(platformdirs.user_runtime_dir("clepsy"))
 LOCK_DIR.mkdir(parents=True, exist_ok=True)
 LOCK_FILE = LOCK_DIR / "clepsy.lock"
 
-# Enable low-level traceback on fatal signals to app.log
+# Enable low-level traceback on fatal signals to the user log file
 FAULT_LOG_FH = None
 try:
-    fault_log_path = Path("app.log").resolve()
+    # Open the configured LOG_FILE (directories are ensured in config.py)
+    fault_log_path = Path(LOG_FILE).resolve()
     # Unbuffered binary writes to ensure data lands even during hard crashes
     FAULT_LOG_FH = open(fault_log_path, "ab", buffering=0)
-    # Write a small marker so we can confirm the correct file is used
     try:
         FAULT_LOG_FH.write(
             f"[faulthandler] armed pid={os.getpid()} path={fault_log_path}\n".encode()
@@ -55,8 +55,13 @@ try:
     except Exception:
         pass
 except Exception:
-    # Fallback to stderr if file open fails
-    faulthandler.enable(all_threads=True)
+    # Safe fallback: only enable faulthandler if stderr exists (avoids RuntimeError on Windows GUI)
+    _stderr = getattr(sys, "stderr", None)
+    if _stderr is not None:
+        try:
+            faulthandler.enable(file=_stderr, all_threads=True)
+        except Exception:
+            pass
 
 
 # Log uncaught exceptions to help diagnose abrupt terminations

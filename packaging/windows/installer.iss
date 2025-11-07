@@ -5,11 +5,19 @@
   #define MyAppVersion "0.0.0"
 #endif
 
+; Allow CI to control the output filename. Defaults to release-style naming.
+#ifndef MyAppFilename
+  #define MyAppFilename GetEnv("APP_FILENAME")
+#endif
+#if MyAppFilename == ""
+  #define MyAppFilename "clepsy-desktop-" + MyAppVersion + "-windows"
+#endif
+
 [Setup]
 AppName=Clepsy
 AppVersion={#MyAppVersion}
 DefaultDirName={pf}\Clepsy
-OutputBaseFilename=clepsy-desktop-{#MyAppVersion}-setup
+OutputBaseFilename={#MyAppFilename}
 Compression=lzma
 SolidCompression=yes
 SetupIconFile=..\..\media\dist\logo.ico

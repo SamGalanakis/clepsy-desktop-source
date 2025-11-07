@@ -148,14 +148,14 @@ class InterceptHandler(logging.Handler):
 
 logging.basicConfig(handlers=[InterceptHandler()], level=0, force=True)
 
-# Create log directory
-LOG_DIR.mkdir(parents=True, exist_ok=True)
+# Ensure required user directories exist early (config, log, runtime)
+for _p in (CFG_DIR, LOG_DIR, LOCK_DIR):
+    try:
+        _p.mkdir(parents=True, exist_ok=True)
+    except Exception:
+        # Directory creation failure should not abort import; will surface later if needed
+        pass
 
-"""
-Ensure Loguru is configured robustly across platforms and PyInstaller modes:
-- Do not assume default handler id=0 exists (e.g., Windows noconsole may start without any sink).
-- Only add a stderr sink if it's a valid writable stream (stderr can be None in GUI/noconsole builds).
-"""
 
 # Safely remove existing handlers (if any)
 try:

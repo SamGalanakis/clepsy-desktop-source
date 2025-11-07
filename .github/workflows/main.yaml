@@ -1,15 +1,12 @@
-name: Build Installers
+name: Release build (on PR merge to main)
 on:
-  push:
-    branches: [main]
-    tags:
-      - "v*"
-  workflow_dispatch:
-  release:
-    types: [published]
+  pull_request:
+    branches: [ main ]
+    types: [ closed ]
 
 jobs:
   build:
+    if: github.event.pull_request.merged == true
     name: Build on ${{ matrix.os }}
     runs-on: ${{ matrix.os }}
     env:
@@ -18,36 +15,26 @@ jobs:
     strategy:
       matrix:
         os: [ubuntu-latest, windows-latest, macos-latest]
-        python-version: ['3.12']
 
     steps:
       - uses: actions/checkout@v4
 
-      - uses: astral-sh/setup-uv@v6         # fast lock/install :contentReference[oaicite:3]{index=3}
+      - uses: astral-sh/setup-uv@v6
         with:
           enable-cache: true
 
-      - uses: actions/setup-python@v5
-        with:
-          python-version: ${{ matrix.python-version }}
+      - uses: j178/prek-action@v1
 
-      - name: Determine version
+      - name: Determine version (from pyproject)
         id: determine-version
         shell: bash
         run: |
-          base=$(python -c 'import pathlib, tomllib; print(tomllib.loads(pathlib.Path("pyproject.toml").read_text())["project"]["version"])')
-          ref_type="${GITHUB_REF_TYPE:-}"
-          ref_name="${GITHUB_REF_NAME:-}"
-          ref="${GITHUB_REF:-}"
-          event="${GITHUB_EVENT_NAME:-}"
-          if [[ -z "$ref_name" && "$ref" == refs/tags/* ]]; then
-            ref_name="${ref#refs/tags/}"
-          fi
-          if [[ "$ref_type" == "tag" || "$ref" == refs/tags/* || "$event" == "release" ]]; then
-            version="${ref_name#v}"
-          else
-            version="${base}.dev${GITHUB_RUN_NUMBER}"
-          fi
+          base=$(python - <<'PY'
+          import tomllib
+          print(tomllib.loads(open('pyproject.toml','rb').read())["project"]["version"])
+          PY
+          )
+          version="$base"
           sanitized=$(echo "$version" | tr -c '0-9A-Za-z._-' '-')
           sanitized=$(echo "$sanitized" | sed -E 's/^-+//; s/-+$//; s/-{2,}/-/g')
           arch_pkgver=$(echo "$sanitized" | tr '-' '_' | sed -E 's/_+$//')
@@ -95,7 +82,7 @@ jobs:
         shell: pwsh
         run: |
           choco install innosetup -y
-          & "C:\Program Files (x86)\Inno Setup 6\ISCC.exe" /DMyAppVersion="${{ env.APP_VERSION }}" packaging/windows/installer.iss
+          & "C:\Program Files (x86)\Inno Setup 6\ISCC.exe" /DMyAppVersion="${{ env.APP_VERSION }}" /DMyAppFilename="clepsy-desktop-${{ env.APP_VERSION }}-windows" packaging/windows/installer.iss
 
       - name: macOS DMG
         if: runner.os == 'macOS'
@@ -181,8 +168,8 @@ jobs:
       - uses: actions/upload-artifact@v4
         if: runner.os == 'Windows'
         with:
-          name: clepsy-desktop-${{ env.APP_VERSION }}-windows-setup
-          path: packaging/windows/Output/clepsy-desktop-${{ env.APP_VERSION }}-setup.exe
+          name: clepsy-desktop-${{ env.APP_VERSION }}-windows
+          path: packaging/windows/Output/clepsy-desktop-${{ env.APP_VERSION }}-windows.exe
 
       - uses: actions/upload-artifact@v4
         if: runner.os == 'macOS'
