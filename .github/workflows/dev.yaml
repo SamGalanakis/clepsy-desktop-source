@@ -31,7 +31,9 @@ jobs:
         run: |
           base=$(python - <<'PY'
           import tomllib
-          print(tomllib.loads(open('pyproject.toml','rb').read())["project"]["version"])
+          with open('pyproject.toml', 'rb') as f:
+              data = tomllib.load(f)
+          print(data["project"]["version"])
           PY
           )
           version="${base}.dev${GITHUB_RUN_NUMBER}"
