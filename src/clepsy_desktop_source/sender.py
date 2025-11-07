@@ -9,7 +9,6 @@ from asyncio import Queue
 
 from clepsy_desktop_source.entities import DesktopCheck, AfkStart, AppState
 from clepsy_desktop_source.config import config
-from uuid import uuid4
 
 
 async def send_desktop_check(
