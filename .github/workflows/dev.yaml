@@ -29,7 +29,7 @@ jobs:
         id: determine-version
         shell: bash
         run: |
-          base=$(python - <<'PY'
+          base=$(uv run python - <<'PY'
           import tomllib
           with open('pyproject.toml', 'rb') as f:
               data = tomllib.load(f)
@@ -77,7 +77,7 @@ jobs:
         shell: bash
         run: |
           mkdir -p artifacts
-          cp dist/$APP_NAME artifacts/clepsy-desktop-${{ env.APP_VERSION }}-macos-dev
+          cp -r "dist/${APP_NAME}.app" "artifacts/clepsy-desktop-${{ env.APP_VERSION }}-macos-dev.app"
 
       - name: Package Linux app (dev)
         if: runner.os == 'Linux'
