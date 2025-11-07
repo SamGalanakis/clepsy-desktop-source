@@ -1,8 +1,6 @@
-name: Dev build (pushes to dev branch)
+name: Dev build (manual trigger)
 
 on:
-  push:
-    branches: [ dev ]
   workflow_dispatch:
 
 jobs:
@@ -22,8 +20,6 @@ jobs:
       - uses: astral-sh/setup-uv@v7
         with:
           enable-cache: true
-
-      - uses: j178/prek-action@v1
 
       - name: Determine dev version
         id: determine-version
