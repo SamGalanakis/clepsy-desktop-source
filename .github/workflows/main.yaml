@@ -19,11 +19,9 @@ jobs:
     steps:
       - uses: actions/checkout@v4
 
-      - uses: astral-sh/setup-uv@v6
+      - uses: astral-sh/setup-uv@v7
         with:
           enable-cache: true
-
-      - uses: j178/prek-action@v1
 
       - name: Determine version (from pyproject)
         id: determine-version
